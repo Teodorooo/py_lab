@@ -5,4 +5,4 @@ Most projects are under developement, but each developement phase is well-define
 
 ## Available projects :
 
-- Tamagochi-like game, version 1.1
+- Tamagochi-like game, version 1.2
