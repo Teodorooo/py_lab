@@ -1,3 +1,5 @@
+import os
+import json
 import sys
 from random import randrange
 from random import randint
@@ -77,31 +79,70 @@ class Pet (object):
             return True
         else:
             return False
-   
+        
+    def get_state(self):
+        return {
+            'name': self.name,
+            'animal_type': self.animal_type,
+            'food': self.food,
+            'exicitement': self.exicitement,
+        }
 
+def save_game(pet):
+    with open('pet_game_save.json', 'w') as f:
+        json.dump(pet.get_state(), f)
+    print("Game saved successfully.")
+    
+def load_game():
+    try:
+        with open('pet_game_save.json', 'r') as f:
+            data = json.load(f)
+        pet = Pet(data['name'], data['animal_type'])
+        pet.food = data['food']
+        pet.exicitement = data['exicitement']
+        return pet
+    except FileNotFoundError:
+        return None
+    
+def delete_saved_game():
+    try:
+        os.remove('pet_game_save.json')
+        print("Saved game deleted successfully.")
+    except FileNotFoundError:
+        print("No saved game file found.")
+    
 def main():
+    my_pet = load_game()
+    if my_pet is None:
+        pet_name = input("What do you want to name your pet? ")
+        pet_type = None
+        while pet_type != "dog" or pet_type != "cat" or pet_type != "owl":
+            pet_type = input("Choose between *DOG* *CAT* *OWL* : ").lower()
+            if pet_type == "dog" or pet_type == "cat" or pet_type == "owl":
+                break
+        my_pet = Pet(pet_name, pet_type)
+        input("Hello! I am " + my_pet.name + " and I am new here! Press enter to start.")
+        pass
+    else:
+        print(f"Welcome back, {my_pet.name}!")
+    pet_type = my_pet.animal_type
     x = 3
     vocab_owl = ['"Hooo, hoo..."','"Buuuh, buuuh..."','"hello"','"hi"']
     vocab_dog = ['"Grrr..."','"Wuf! Wuf!"','"hello"','"hi"']
     vocab_cat = ['"meeooow..."', '"kjjjj!"','"hello"','"hi"']
-    pet_name = input("What do you want to name your pet? ")
-    pet_type = None
-    while pet_type != "dog" or pet_type != "cat" or pet_type != "owl":
-        pet_type = input("Choose between *DOG* *CAT* *OWL* : ").lower()
-        if pet_type == "dog" or pet_type == "cat" or pet_type == "owl":
-            break
-    my_pet = Pet(pet_name, pet_type)
-    input("Hello! I am " + my_pet.name + " and I am new here! Press enter to start.")
     choice = None
     while choice != 0:
         print(
 """
 
 *** INTERACT WITH YOUR PET ***
+
     1 - Feed your pet
     2 - Talk with your pet
     3 - Teach your pet a new word
     4 - Play with your pet
+    5 - Save the game
+    6 - Delete saved game
     0 - Quit
 """     
 )  
@@ -110,7 +151,7 @@ def main():
         if choice == "0":
             choice2 = None
             while choice2 != "y" or choice2 != "n":
-                choice2 = input("Are you sure you want to leave ? y/n (The game will not save) ").lower()
+                choice2 = input("Are you sure you want to leave ? y/n (Don't forget to save the game.) ").lower()
                 if choice2 == "n":
                     break
                 if choice2 == "y":
@@ -142,14 +183,19 @@ def main():
         elif choice == "4":
             my_pet.play()
 
+        elif choice == "5":
+            save_game(my_pet)
+
+        elif choice == "6":
+            delete_saved_game()
+
         else:
             print("Sorry, that isn't a valid option.")
 
 def exit_program():
-    print("Teminating the game...")
+    print("Exiting the game...")
     sys.exit(0)
 
 if __name__ == "__main__":
-
-
+    
     main()
