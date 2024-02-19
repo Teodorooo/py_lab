@@ -1,35 +1,36 @@
-# Tamagotchi Virtual Pet Game
+# Virtual Pet Game
 
-### Current version: v1.1
+## Version 1.4
 
 ## Overview
-The Tamagotchi Virtual Pet Game is a simple Python-based project where players can adopt and take care of a virtual pet, choosing from a dog, cat, or owl. Through a series of interactive prompts, players can feed, talk to, and play with their pet to keep it happy and healthy.
 
-## Features
-- **Pet Types**: Choose a pet from dog, cat, or owl.
-- **Interactions**: Feed, talk, teach, and play with your pet.
-- **Mood and Health**: Manage your pet's mood and health through your actions.
-- **Dynamic Vocabulary**: Teach your pet new words to enhance interaction.
+This Virtual Pet Game is a simple, interactive desktop application where you can adopt and take care of a virtual pet. Using Python and Tkinter, this game lets you choose a pet (dog, cat, or owl), and manage its well-being through various activities.
 
-## Gameplay
-1. **Start**: Name and choose your pet type.
-2. **Interact**: Select actions to care for your pet.
-3. **Maintain Health**: Ensure your pet remains happy and healthy.
+## Key Features
 
-## How to Run
-Ensure Python is installed on your computer. Run the game script in a Python environment:
+- **Choose Your Pet**: Start by adopting a dog, cat, or owl.
+- **Interactive Gameplay**: Feed, clean, play, and teach your pet new words to keep it happy.
+- **Track Pet's Mood**: The game keeps track of your pet's mood, which changes based on how you care for it.
+- **Save/Load Progress**: You can save your game progress and load it later.
+
+## How to Play
+
+1. **Start the Game**: Run the game script in Python.
+2. **Adopt a Pet**: Choose your pet type and give it a name.
+3. **Care for Your Pet**: Use the game buttons to interact with your pet.
+4. **Save Your Game**: Don't forget to save your progress.
+
+## Running the Game
+
+Ensure Python and Tkinter are installed. Run the game script from your terminal:
 
 ```bash
-python tamagotchi_game.py
+python virtual_pet_game.py
 ```
 
-## Code Structure
-- `Pet` class represents the virtual pet with attributes for name, type, food, and excitement levels.
-- Game loop in `main()` function for player interaction.
-- Methods for pet actions (`feed`, `talk`, `play`) and state management.
+## Future Plans
 
-## Future Directions
-Future updates may include graphical interfaces, more pet types, game state saving, and expanded interactions.
+- Add more pet types and interactive features.
+- Introduce a health system and more detailed pet care.
 
-## Conclusion
-Enjoy taking care of your virtual pet in this basic yet engaging Tamagotchi game. Perfect for beginners looking to practice Python and game development basics.
+Enjoy taking care of your virtual pet!
