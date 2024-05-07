@@ -1,4 +1,5 @@
 # Tamagotchi Game
+## Version 1.6
 
 A virtual pet simulation game where you take care of your pet's needs.
 
@@ -15,3 +16,4 @@ A virtual pet simulation game where you take care of your pet's needs.
 ## Requirements
 - Python
 - Pygame
+
