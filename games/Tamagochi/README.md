@@ -1,5 +1,5 @@
 # Tamagotchi Game
-## Version 1.6
+## Version 1.7
 
 A virtual pet simulation game where you take care of your pet's needs.
 
