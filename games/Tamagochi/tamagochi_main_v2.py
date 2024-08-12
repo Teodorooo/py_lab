@@ -210,10 +210,11 @@ def move(placement):
             rects[0] -= 150
 
 def low_stat():
-    if stats["bored"] == stats["filthy"]: stats["filthy"] += 1
-    if stats["bored"] == stats["hungry"]: stats["hungry"] += 1
-    if stats["filthy"] == stats["hungry"]: stats["hungry"] += 1
+    "eeeeeeeee"
     if min(stats.values()) <= 24:
+        if stats["bored"] == stats["filthy"]: stats["filthy"] += 1
+        if stats["bored"] == stats["hungry"]: stats["hungry"] += 1
+        if stats["filthy"] == stats["hungry"]: stats["hungry"] += 1
         for keys, values in stats.items():
             if values == min(stats.values()):
                 low_stat_text = font.render(f"I am {keys} !", False, "Dark Red")
