@@ -5,4 +5,5 @@ Most projects are under developement, but each developement phase is well-define
 
 ## Available projects:
 
-- Tamagochi-like game, version 1.4
+- Tamagochi-like game, version 2.0
+- Risk board game, version 2.0

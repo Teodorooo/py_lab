@@ -51,7 +51,7 @@ class PlayerManager:
 
     def add_starting_units(self) -> None:
         for player_info in self.players.values():
-            player_info['available_units'] = 40 - (len(self.players) - 2) * 5
+            player_info['available_units'] = (40 - (len(self.players) - 2) * 5) - 30
     
     def assign_playing_order(self):
         player_keys = list(self.players.keys())
@@ -64,8 +64,7 @@ class PlayerManager:
         for player in self.player_objects:
             if len(player.controlled_countries) == all_countries:
                 return player
-            else:
-                return None
+        return None
 
 class Player:
     def __init__(self, countries, player_name, players):
@@ -102,7 +101,7 @@ class Player:
             elif self.phase == 'attack':                                                         
                 self.phase = 'fortify'                                                       
                 self.end_turn = False                                                        
-                self.fortify_once_flag = True                                                        
+                self.fortified = False                                                        
             else:                                               
                 self.phase = 'place'                                                         
                 self.end_turn = True                                                 
@@ -322,6 +321,7 @@ class GameState:
         starting_phase = state["starting_phase"]
         fortified = state["fortified"]
         conquered_country = state['conquered_country']
+        actions = set()
 
         controlled = [name for name, info in countries.items() if info["owner"] == player]
         
@@ -342,10 +342,9 @@ class GameState:
                            for units in range(1, available_units + 1, 1) for country in controlled)
                 actions.add(("skip_to_attack",))
             else:
-                actions = set(("skip_to_attack",))
+                actions.add(("skip_to_attack",))
                 
         elif phase == "attack":
-            actions = set()
             for country in controlled:
                 if state['countries'][country]["units"] > 1:
                     for neighbor in state['countries'][country]["neighbours"]:
@@ -358,10 +357,9 @@ class GameState:
                                     neighbor,
                                     u,
                                 ))
-            actions.add("skip_to_fortify",)
+            actions.add(("skip_to_fortify",))
                                     
         elif phase == "fortify":
-            actions = set()
             if not fortified:
                 for src in controlled:
                     src_info = countries[src]
@@ -375,7 +373,7 @@ class GameState:
                                     dst,
                                     u,
                                 ))
-            actions.add("end_turn",)
+            actions.add(("end_turn"),)
             
         return actions
     
@@ -485,7 +483,7 @@ class GameState:
         return new_army if new_army > 3 else 3
     
     def is_terminal(self, state):
-        player = self.get_active_player_name(self.root_state)
+        player = self.get_active_player_name(state)
         owners = {c['owner'] for c in state['countries'].values()}
 
         if len(owners) == 1 and player in owners:
@@ -534,8 +532,8 @@ class MCTS:
             self.root_player_index
         )
 
-        self.alpha = 0.5
-        # print(self.heuristic_score(self.game_state.root_state))
+        self.alpha = 1.5
+        print(self.heuristic_score(self.game_state.root_state))
         
     def expand(self, parent):
         if not parent.untried:
@@ -657,7 +655,7 @@ class MCTS:
         state = node.state
         for _ in range(self.depth):
             terminal_val = self.game_state.is_terminal(state)
-            if terminal_val is not 0: # if the game is finished
+            if terminal_val != 0: # if the game is finished
                 return terminal_val
             
             actions = list(self.game_state.get_valid_actions(state))
@@ -727,6 +725,7 @@ class BotPlayer(Player):
 
         action = mcts.solve()
         action_type = action[0]
+        print(action)
 
         if self.conquered_country:
             for country in self.countries:
@@ -783,14 +782,12 @@ class BotPlayer(Player):
                 self.end_turn = True
 
         else: # skip_phase
-            if not isinstance(action, str):
-                action = action[0]
-            if action == "skip_to_attack":
+            if action_type == "skip_to_attack":
                 self.phase = "attack"
-            elif action == "skip_to_fortify":
+            elif action_type == "skip_to_fortify":
                 self.phase = "fortify"
                 self.fortified = False
-            elif action == "end_turn": 
+            elif action_type == "end_turn" or action == "end_turn": 
                 self.end_turn = True
                 self.phase = "place"
                 self.new_army_received = False
@@ -913,7 +910,7 @@ class MakeCountries:
             num += len(all_starting_countries) / len(self.players) 
         
     def read_geo_data(self) -> None:
-        with open("./data/country_coords.json", "r") as f:
+        with open("./games/Risk/data/country_coords.json", "r") as f:
             self.geo_data = json.load(f)
             
     def get_country_neighbours(self, country: Country) -> dict:
@@ -1023,8 +1020,8 @@ window_size = pg.Vector2(WIDTH, HEIGHT)
 screen = pg.display.set_mode(window_size)
 clock = pg.time.Clock()
 
-font = pg.font.Font('font/EraserRegular.ttf', 30)
-small_font = pg.font.Font('font/EraserRegular.ttf', 20)
+font = pg.font.Font('./games/Risk/font/EraserRegular.ttf', 30)
+small_font = pg.font.Font('./games/Risk/font/EraserRegular.ttf', 20)
 
 pg.display.set_caption("Risk")
 

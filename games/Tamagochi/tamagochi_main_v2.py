@@ -192,7 +192,7 @@ def time_tick():
 
 def check_pet_type():
     if pet_type:
-        return "sprites/pets/" + str(pet_type) + ".gif"
+        return "./games/Tamagochi/sprites/pets/" + str(pet_type) + ".gif"
     else:
         return data_from_file["image_path"]
     
@@ -210,7 +210,6 @@ def move(placement):
             rects[0] -= 150
 
 def low_stat():
-    "eeeeeeeee"
     if min(stats.values()) <= 24:
         if stats["bored"] == stats["filthy"]: stats["filthy"] += 1
         if stats["bored"] == stats["hungry"]: stats["hungry"] += 1
@@ -225,7 +224,7 @@ pygame.init()
 screen = pygame.display.set_mode((800, 400))
 pygame.display.set_caption('Tamagochi-like game')
 game = 'start screen'
-font = pygame.font.Font('font/Pixeltype.ttf', 50)
+font = pygame.font.Font('./games/Tamagochi/font/Pixeltype.ttf', 50)
 clock = pygame.time.Clock()
 start_time = time.time()
 intervall = 7200
@@ -243,62 +242,62 @@ except FileNotFoundError:
     with open('scores.json', 'w') as file:
         json.dump(scores, file)
     
-apple = Objects(pygame.image.load('sprites/objects/apple.png').convert_alpha(), [80, 70], 'hungry')
-brush = Objects(pygame.image.load('sprites/objects/brush.png').convert_alpha(), [80, 160], 'filthy')
-ball = Objects(pygame.image.load('sprites/objects/ball.png').convert_alpha(), [80, 240], 'bored')
-chest_closed = Objects(pygame.image.load('sprites/objects/chest_closed.png').convert_alpha(), [450, 250], False)
+apple = Objects(pygame.image.load('./games/Tamagochi/sprites/objects/apple.png').convert_alpha(), [80, 70], 'hungry')
+brush = Objects(pygame.image.load('./games/Tamagochi/sprites/objects/brush.png').convert_alpha(), [80, 160], 'filthy')
+ball = Objects(pygame.image.load('./games/Tamagochi/sprites/objects/ball.png').convert_alpha(), [80, 240], 'bored')
+chest_closed = Objects(pygame.image.load('./games/Tamagochi/sprites/objects/chest_closed.png').convert_alpha(), [450, 250], False)
 
-dog = Pet(pygame.image.load('sprites/pets/dog.gif').convert_alpha(), (150, 200), "dog")
-cat = Pet(pygame.image.load('sprites/pets/cat.gif').convert_alpha(), (400, 200), "cat")
-parrot = Pet(pygame.image.load('sprites/pets/parrot.gif').convert_alpha(), (650, 200), "parrot")
+dog = Pet(pygame.image.load('./games/Tamagochi/sprites/pets/dog.gif').convert_alpha(), (150, 200), "dog")
+cat = Pet(pygame.image.load('./games/Tamagochi/sprites/pets/cat.gif').convert_alpha(), (400, 200), "cat")
+parrot = Pet(pygame.image.load('./games/Tamagochi/sprites/pets/parrot.gif').convert_alpha(), (650, 200), "parrot")
 
 pet_group = pygame.sprite.Group()
 pet_group.add(dog, cat, parrot)
 objects_group = pygame.sprite.Group()
 objects_group.add(apple, brush, ball, chest_closed)
 
-start_background = pygame.image.load('sprites/backgrounds/start_screen.png').convert_alpha()
+start_background = pygame.image.load('./games/Tamagochi/sprites/backgrounds/start_screen.png').convert_alpha()
 start_background_rect = start_background.get_rect(center=(400, 200))
 start_background, start_background_rect = scaling(start_background, start_background_rect, 0.5)
 
-alive_background = pygame.image.load('sprites/backgrounds/mountain.png').convert_alpha()
+alive_background = pygame.image.load('./games/Tamagochi/sprites/backgrounds/mountain.png').convert_alpha()
 alive_background_rect = alive_background.get_rect(center=(400, -250))
 alive_background, alive_background_rect = scaling(alive_background, alive_background_rect, 1)
 
-dead_background = pygame.image.load('sprites/backgrounds/sky.png').convert_alpha()
+dead_background = pygame.image.load('./games/Tamagochi/sprites/backgrounds/sky.png').convert_alpha()
 dead_background_rect = dead_background.get_rect(center=(400, 200))
 dead_background, dead_background_rect = scaling(dead_background, dead_background_rect, 3)
 
-house_background = pygame.image.load('sprites/backgrounds/house.png').convert_alpha()
+house_background = pygame.image.load('./games/Tamagochi/sprites/backgrounds/house.png').convert_alpha()
 house_background_rect = house_background.get_rect(topleft=(0, 0))
 
-drunk = pygame.image.load("sprites/paint/drunk.jpg").convert_alpha()
+drunk = pygame.image.load("./games/Tamagochi/sprites/paint/drunk.jpg").convert_alpha()
 drunk_rect = drunk.get_rect(center=(400, 200))
 drunk, drunk_rect = scaling(drunk, drunk_rect, 0.2)
 
-manaba = pygame.image.load("sprites/paint/manaba.jpg").convert_alpha()
+manaba = pygame.image.load("./games/Tamagochi/sprites/paint/manaba.jpg").convert_alpha()
 manaba_rect = manaba.get_rect(center=(125, 200))
 manaba, manaba_rect = scaling(manaba, manaba_rect, 0.2)
 
-ufo = pygame.image.load("sprites/paint/ufo.jpg").convert_alpha()
+ufo = pygame.image.load("./games/Tamagochi/sprites/paint/ufo.jpg").convert_alpha()
 ufo_rect = ufo.get_rect(center=(700, 200))
 ufo, ufo_rect = scaling(ufo, ufo_rect, 0.15)
 
-chest_opened = pygame.image.load("sprites/objects/chest_open.png").convert_alpha()
+chest_opened = pygame.image.load("./games/Tamagochi/sprites/objects/chest_open.png").convert_alpha()
 chest_opened_rect = chest_opened.get_rect(center=[449, 250])
 chest_opened, chest_opened_rect = scaling(chest_opened, chest_opened_rect, 0.555)
 
-action_menu = pygame.image.load("sprites/miscellanious/action_menu.png").convert_alpha()
+action_menu = pygame.image.load("./games/Tamagochi/sprites/miscellanious/action_menu.png").convert_alpha()
 action_menu_rect = action_menu.get_rect(center=(400, 200))
 
-q_m = pygame.image.load('sprites/miscellanious/q_m.png').convert_alpha()
+q_m = pygame.image.load('./games/Tamagochi/sprites/miscellanious/q_m.png').convert_alpha()
 q_m_rect = q_m.get_rect(bottomright=(850,450))
 q_m, q_m_rect = scaling(q_m, q_m_rect, 0.25)
 
-restart = pygame.image.load("sprites/miscellanious/restart.png").convert_alpha()
+restart = pygame.image.load("./games/Tamagochi/sprites/miscellanious/restart.png").convert_alpha()
 restart_rect = restart.get_rect(center=(400, 275))
 
-p_buck = pygame.image.load("sprites/miscellanious/bill.gif").convert_alpha()
+p_buck = pygame.image.load("./games/Tamagochi/sprites/miscellanious/bill.gif").convert_alpha()
 p_buck_rect = p_buck.get_rect(center=(90, 325))
 
 click_to_start = font.render('Click to start.', False, 'Dark Blue')
@@ -428,9 +427,9 @@ while True:
         if detected["click"]:    
             score_flag = True
             game = "start screen"
-            dog.reset(pygame.image.load('sprites/pets/dog.gif').convert_alpha(), (150, 200), "dog")
-            cat.reset(pygame.image.load('sprites/pets/cat.gif').convert_alpha(), (400, 200), "cat")
-            parrot.reset(pygame.image.load('sprites/pets/parrot.gif').convert_alpha(), (650, 200), "parrot")
+            dog.reset(pygame.image.load('./games/Tamagochi/sprites/pets/dog.gif').convert_alpha(), (150, 200), "dog")
+            cat.reset(pygame.image.load('./games/Tamagochi/sprites/pets/cat.gif').convert_alpha(), (400, 200), "cat")
+            parrot.reset(pygame.image.load('./games/Tamagochi/sprites/pets/parrot.gif').convert_alpha(), (650, 200), "parrot")
             pet_group = pygame.sprite.Group()
             pet_group.add(dog, cat, parrot)
 
