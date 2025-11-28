@@ -8,10 +8,15 @@ from copy import deepcopy
 import numpy as np
 from math import sqrt, log
 
+from oldmtcs import OldMCTS
+from newmcts import NewMCTS
+bot_versions = (OldMCTS, NewMCTS)
+
 class PlayerManager:
-    def __init__(self, players, countries):
+    def __init__(self, players, countries, bot_versions):
         self.players = players
         self.countries = countries
+        self.bot_versions = bot_versions
         self.turn = 1
 
         self.add_starting_units()
@@ -24,8 +29,11 @@ class PlayerManager:
     
     def create_player_objects(self):
         for player, player_info in self.players.items():
-            if player_info['is_bot']:
-                self.player_objects.append(BotPlayer(self.countries, player, self.players))
+            if player_info['bot_version']:
+                for version in self.bot_versions:
+                    version_name =  str(version)[17:-2]
+                    if version_name.lower() == player_info['bot_version'].lower():
+                        self.player_objects.append(version(self.countries, player, self.players, version_name))
             else:
                 self.player_objects.append(HumanPlayer(self.countries, player, self.players))
                 
@@ -938,17 +946,18 @@ class MakeCountries:
                     country.neighbours.append(name_to_country[neighbor_name])
         
 class Game:
-    def __init__(self, clock: pg.time.Clock):
+    def __init__(self, clock: pg.time.Clock, bot_versions: list):
         self.clock = clock
+        self.bot_versions = bot_versions
         self.playing = True
         self.scroll = 0
         
-        self.players = {"player1": {"is_bot": True, "color": (200, 250, 255)},
-                        "player2": {"is_bot": True, "color": (255, 0, 255)},}
-#                       "Me": {"is_bot": False, "color": (255, 176, 79)},}     # Add players here
+        self.players = {"player1": {"bot_version": True, "color": (200, 250, 255)}, # Add players here
+                        "player2": {"bot_version": True, "color": (255, 0, 255)},}  # For human player -> "bot_version": None 
+#                       "Me": {"bot_version": None, "color": (255, 176, 79)},}     
         
         self.countries = MakeCountries(self.players).countries
-        self.manage_players = PlayerManager(self.players, self.countries)
+        self.manage_players = PlayerManager(self.players, self.countries, self.bot_versions)
         self.draw = Draw(self.countries)
         
     def run(self) -> None:
@@ -1025,7 +1034,7 @@ small_font = pg.font.Font('./games/Risk/font/EraserRegular.ttf', 20)
 
 pg.display.set_caption("Risk")
 
-game = Game(clock)
+game = Game(clock, bot_versions)
 
 game.run()
 
