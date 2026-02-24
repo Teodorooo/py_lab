@@ -1,9 +1,9 @@
 from copy import deepcopy
 from random import randint, choice
 from math import sqrt, log
-from utils import Utils
-utils = Utils()
-attack_calculation = utils.attack_calculation 
+from src.utils import Utils
+
+attack_calculation = Utils().attack_calculation 
 
 class GameState:
     def __init__(self, players, current_player_index, countries, starting_phase, phase, fortified, conquered_country):
@@ -239,7 +239,7 @@ class Node:
         node.value_sum = 0
         node.player_index = player_index
             
-class NewMCTS:
+class OldMCTS:
     def __init__(self, players, countries, starting_phase, root_player_index, phase, fortified, conquered_country, n_iterations=200, depth=8, exploration_constant=sqrt(2)):
         self.players = players
         self.countries = countries
@@ -266,7 +266,7 @@ class NewMCTS:
             self.root_player_index
         )
 
-        self.alpha = 0.1
+        self.alpha = 1
         # print(self.heuristic_score(self.game_state.root_state))
         
     def expand(self, parent):
@@ -431,3 +431,4 @@ class NewMCTS:
         best_action = best_child.action
         
         return best_action
+    

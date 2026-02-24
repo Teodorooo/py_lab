@@ -18,7 +18,7 @@ class Utils:
 
         return defender_units, attacker_units
 
-    def font(self, font_path: str, size: int) -> pg.font.Font:
+    def _font(self, font_path: str, size: int) -> pg.font.Font:
         key = (font_path, size)
         if key not in self._fonts:
             self._fonts[key] = pg.font.Font(font_path, int(size))
@@ -39,7 +39,7 @@ class Utils:
         get_rect: bool = False,
     ):
 
-        text_surf = self.font(font_path, size).render(text, True, color)
+        text_surf = self._font(font_path, size).render(text, True, color)
         text_rect = text_surf.get_rect()
 
         if center:

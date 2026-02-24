@@ -1,9 +1,9 @@
 from copy import deepcopy
-from random import randint, choice
+from random import choice, sample
 from math import sqrt, log
-from utils import Utils
-utils = Utils()
-attack_calculation = utils.attack_calculation 
+from src.utils import Utils
+
+attack_calculation = Utils().attack_calculation 
 
 class GameState:
     def __init__(self, players, current_player_index, countries, starting_phase, phase, fortified, conquered_country):
@@ -46,8 +46,6 @@ class GameState:
         return simplified_countries
     
     def get_valid_actions(self, state) -> set:
-        actions = []
-
         phase = state["phase"]
         player = self.get_active_player_name(state)
         countries = state["countries"]
@@ -60,16 +58,20 @@ class GameState:
         controlled = [name for name, info in countries.items() if info["owner"] == player]
         
         if conquered_country:
+            max_movable = countries[conquered_country['from']]['units'] - 1
             actions = set(("conquered_country", 
                              conquered_country['from'], 
                              conquered_country['to'], 
                              u) 
-                            for u in range(1, (countries[conquered_country['from']]['units'] - 1) + 1))
+                            for u in range(1, max_movable + 1))
         
         elif phase == "place":
             if starting_phase:
-                actions = set(("place", country, 1) 
-                           for country in controlled)
+                if available_units > 0:
+                    actions = set(("place", country, 1) 
+                               for country in controlled)
+                else:
+                    actions.add(("skip_to_attack",))
 
             elif available_units > 0:
                 actions = set(("place", country, units) 
@@ -107,7 +109,8 @@ class GameState:
                                     dst,
                                     u,
                                 ))
-            actions.add(("end_turn"),)
+            # FIX: was ("end_turn"),) which added the string "end_turn" instead of a tuple
+            actions.add(("end_turn",))
             
         return actions
     
@@ -136,59 +139,61 @@ class GameState:
         
         action_type = action[0]
         
-        available_units = state['players'][player]['available_units']
-        countries = state["countries"]
         conquered_country = state['conquered_country']
-        fortified = state['fortified']
         
         if conquered_country:
-            for country in countries:
-                if country == conquered_country['from']:
-                    new_state['countries'][country]['units'] -= action[-1] # action["units"]
-                if country == conquered_country['to']:
-                    new_state['countries'][country]['units'] += action[-1] # units
-                new_state['conquered_country'] = None
+            # FIX: removed unnecessary loop, access dicts directly
+            from_country = conquered_country['from']
+            to_country = conquered_country['to']
+            new_state['countries'][from_country]['units'] -= action[-1]
+            new_state['countries'][to_country]['units'] += action[-1]
+            new_state['conquered_country'] = None
                 
         elif action_type == "place":
-            for country in countries:
-                if country == action[1]:  # action["country"]           
-                    new_state['players'][player]['available_units'] -= action[-1] # units              
-                    new_state['countries'][country]['units'] += action[-1] # units              
-                    if available_units <= 0:                   
-                        new_state['starting_phase'] = False   
-                    if new_state['starting_phase']:
-                        new_state['phase'] = 'place'                  
+            country = action[1]
+            units = action[-1]
+            new_state['players'][player]['available_units'] -= units
+            new_state['countries'][country]['units'] += units
+            # FIX: check NEW available_units instead of old
+            if new_state['players'][player]['available_units'] <= 0:                   
+                new_state['starting_phase'] = False   
+            if new_state['starting_phase']:
+                new_state['phase'] = 'place'                  
                         
-        elif action_type == "attack":                 
-            for country in countries:                   
-                if action[2] == country: # if defender == country:                   
-                    defender = country                   
-                if action[1] == country: # if attacker == country:                  
-                    attacker = country                   
+        elif action_type == "attack":
+            # FIX: removed unnecessary loop, access dicts directly
+            attacker = action[1]
+            defender = action[2]
                     
             new_state['countries'][defender]['units'], new_state['countries'][attacker]['units'] = attack_calculation(                   
-                action[-1], # units                    
+                action[-1],
                 new_state['countries'][defender]['units'],                    
                 new_state['countries'][attacker]['units']                                                 
-            )                                      
-            if new_state['countries'][defender]['units'] <= 0:                              
+            )
+            if new_state['countries'][defender]['units'] <= 0:
+                # FIX: clamp to 0 so conquered_country move logic doesn't inherit negative units
+                new_state['countries'][defender]['units'] = 0
                 new_state['conquered_country'] = {'from': attacker, 'to': defender}                              
                 new_state['countries'][defender]['owner'] = player                              
 
-        elif action_type == "fortify":                              
-            if not fortified:                              
-                for country in countries:                              
-                    if country == action[1]: # unit granting country                            
-                        new_state['countries'][country]['units'] -= action[-1] # units                            
-                    if country == action[2]: # unit receiving country                             
-                        new_state['countries'][country]['units'] += action[-1] # units                        
-                    new_state['fortified'] = True                              
+        elif action_type == "fortify":
+            # FIX: removed unnecessary loop, access dicts directly
+            src = action[1]
+            dst = action[2]
+            units = action[-1]
+            if not state['fortified']:
+                new_state['countries'][src]['units'] -= units
+                new_state['countries'][dst]['units'] += units
+                new_state['fortified'] = True
     
-        else: # skip phase                              
-            if action == 'skip_to_attack':                                                           
+        else: # skip phase
+            # FIX: was comparing `action` (a tuple) to strings — always False,
+            # so skip_to_attack and skip_to_fortify fell through to end_turn.
+            # Now correctly compares action_type (action[0]).
+            if action_type == 'skip_to_attack':                                                           
                 new_state['phase'] = 'attack'                              
     
-            elif action == 'skip_to_fortify':                              
+            elif action_type == 'skip_to_fortify':                              
                 new_state['phase'] = 'fortify'                              
                 new_state['fortified'] = False                              
     
@@ -217,29 +222,23 @@ class GameState:
         return new_army if new_army > 3 else 3
     
     def is_terminal(self, state):
-        player = self.get_active_player_name(state)
         owners = {c['owner'] for c in state['countries'].values()}
-
-        if len(owners) == 1 and player in owners:
-            return 1 # win
-        elif player not in owners:
-            return -1 # loss
-        else:
-            return 0 # game not finished
+        return len(owners) == 1
         
 class Node:
-    def __init__(node, action, state, parent, player_index):
-        node.action = action
-        node.state = state
-        node.parent = parent
-        node.children = []
-        node.untried = set()
-        node.tried = set()
-        node.visits = 0
-        node.value_sum = 0
-        node.player_index = player_index
+    # FIX: use `self` instead of `node` (Python convention)
+    def __init__(self, action, state, parent, player_index):
+        self.action = action
+        self.state = state
+        self.parent = parent
+        self.children = []
+        self.untried = set()
+        self.tried = set()
+        self.visits = 0
+        self.value_sum = 0
+        self.player_index = player_index
             
-class OldMCTS:
+class NewMCTS:
     def __init__(self, players, countries, starting_phase, root_player_index, phase, fortified, conquered_country, n_iterations=200, depth=8, exploration_constant=sqrt(2)):
         self.players = players
         self.countries = countries
@@ -259,6 +258,9 @@ class OldMCTS:
         
         self.root_state = self.game_state.root_state
         
+        # Cache root player name for consistent evaluation perspective
+        self.root_player = self.game_state.get_active_player_name(self.root_state)
+        
         self.root_node = Node(
             None,
             self.root_state,
@@ -266,8 +268,21 @@ class OldMCTS:
             self.root_player_index
         )
 
-        self.alpha = 1
-        # print(self.heuristic_score(self.game_state.root_state))
+        self.alpha = 0.1
+        
+    def evaluate_for_player(self, state):
+        """Evaluate state from the active player's perspective. Returns value in [-1, 1]."""
+        player = self.game_state.get_active_player_name(state)
+        total = len(state['countries'])
+        owned = sum(1 for c in state['countries'].values() if c['owner'] == player)
+
+        if owned == total:
+            return 1.0
+        if owned == 0:
+            return -1.0
+
+        return (owned / total) * 2 - 1
+
         
     def expand(self, parent):
         if not parent.untried:
@@ -278,28 +293,43 @@ class OldMCTS:
         if not parent.untried:
             return parent
 
-        actions = parent.untried
-        best_action = {"action": None, "score": float('-inf')}
-
-        for _ in range(min(100, len(actions))):
-            random_action = list(actions)[randint(0, len(actions) - 1)]
-            actions.remove(random_action)
-            
-            state = self.game_state.apply_action(parent.state, random_action)
-            score = self.heuristic_score(state)
-            
-            if score > best_action['score']:
-                best_action['action'] = random_action
-                best_action['score'] = score
-            
-        action = best_action['action'] 
-
-        parent.tried.add(action)
+        # FIX: sample from a list copy so we don't destroy parent.untried
+        actions_list = list(parent.untried)
+        sample_size = min(100, len(actions_list))
+        sampled_actions = sample(actions_list, sample_size)
         
-        new_node = Node(action,
-                        self.game_state.apply_action(parent.state, action),
+        best_action = None
+        best_score = float('-inf')
+        best_state = None
+
+        # Find the player name for the parent's player_index
+        player = None
+        for player_name, data in parent.state['players'].items():
+            if data['player_index'] == parent.player_index:
+                player = player_name
+                break
+
+        for action in sampled_actions:
+            state = self.game_state.apply_action(parent.state, action)
+                        
+            count = sum(1 for data in state['countries'].values() if data['owner'] == player)
+            score = count / len(state['countries'])
+            
+            if score > best_score:
+                best_action = action
+                best_score = score
+                best_state = state
+
+        parent.tried.add(best_action)
+        
+        # FIX: reuse the already-computed state instead of calling apply_action a second time
+        # (avoids double computation and inconsistency if attack_calculation has randomness)
+        new_node = Node(best_action,
+                        best_state,
                         parent,
-                        (parent.player_index+1)%len(self.players))
+                        # FIX: use the state's actual current_player_index,
+                        # not (parent+1)%len — turns only change on end_turn
+                        best_state['current_player_index'])
         
         parent.children.append(new_node)
         
@@ -313,20 +343,31 @@ class OldMCTS:
 
         for child in node.children:
             if child.visits == 0:
-                score = self.heuristic_score(child.state)
+                # Find the parent's player name
+                player = None
+                for player_name, data in child.state['players'].items():
+                    if data['player_index'] == child.parent.player_index:
+                        player = player_name
+                        break
+
+                count = sum(1 for data in child.state['countries'].values() if data['owner'] == player)
+                score = count / len(child.state['countries'])
+
                 if score > unvisited_children['score']:
                     unvisited_children['child'] = child
                     unvisited_children['score'] = score
+                # FIX: skip UCB comparison for unvisited children — they're handled separately below
+                continue
             else:
-
                 Q = child.value_sum / child.visits
                 N = node.visits
                 n = child.visits
                 U = C * sqrt(log(N) / n)
 
-                H = self.heuristic_score(child.state)    
+                #H = self.heuristic_score(child.state)    
                 
-                score = Q + U + self.alpha * H
+                score = Q + U #+ self.alpha * H
+
             if score > best_score:
                 best_score = score
                 best = child
@@ -336,42 +377,42 @@ class OldMCTS:
         
         return best
 
-    def heuristic_score(self, state):
-        countries = state['countries']
-        players = state['players']
-        active_player = None
-        unused_units = 0
-        units_in_board = 0
+    # def heuristic_score(self, state):
+    #     countries = state['countries']
+    #     players = state['players']
+    #     active_player = None
+    #     unused_units = 0
+    #     units_in_board = 0
         
-        for player in players:
-            if players[player]['player_index'] == state['current_player_index']:
-                active_player = player
-                break
+    #     for player in players:
+    #         if players[player]['player_index'] == state['current_player_index']:
+    #             active_player = player
+    #             break
         
-        for country in countries:
-            if countries[country]['owner'] == active_player:
-                is_safe = True
-                units_in_board += countries[country]['units'] - 1
-                for neighbour in countries[country]["neighbours"]:
-                    if countries[neighbour]["owner"] != active_player:
-                        is_safe = False
-                        break
-                if is_safe:
-                    unused_units += countries[country]["units"] - 1
+    #     for country in countries:
+    #         if countries[country]['owner'] == active_player:
+    #             is_safe = True
+    #             units_in_board += countries[country]['units'] - 1
+    #             for neighbour in countries[country]["neighbours"]:
+    #                 if countries[neighbour]["owner"] != active_player:
+    #                     is_safe = False
+    #                     break
+    #             if is_safe:
+    #                 unused_units += countries[country]["units"] - 1
 
-        try:
-            unused_percentage = unused_units / units_in_board
-        except ZeroDivisionError:
-            unused_percentage = -0.5
+    #     try:
+    #         unused_percentage = unused_units / units_in_board
+    #     except ZeroDivisionError:
+    #         unused_percentage = -0.5
         
-        A = -155/9
-        B = 167/6
-        C = -227/18
-        D = 1.0
+    #     A = -155/9
+    #     B = 167/6
+    #     C = -227/18
+    #     D = 1.0
         
-        score = A*unused_percentage**3 + B*unused_percentage**2 + C*unused_percentage + D
+    #     score = A*unused_percentage**3 + B*unused_percentage**2 + C*unused_percentage + D
 
-        return score
+    #     return 0
      
     def selection(self, node):
         current_child = node
@@ -382,32 +423,34 @@ class OldMCTS:
                 return current_child
             
             current_child = self.best_child(current_child)
-        else:
-            return current_child
+        
+        return current_child
         
     def simulate(self, node):
         state = node.state
         for _ in range(self.depth):
-            terminal_val = self.game_state.is_terminal(state)
-            if terminal_val != 0: # if the game is finished
-                return terminal_val
-            
+            if self.game_state.is_terminal(state):
+                return self.evaluate_for_player(state)
+
             actions = list(self.game_state.get_valid_actions(state))
-            
+
             if not actions:
                 break
             
             state = self.game_state.apply_action(state, choice(actions))
-               
-        return max(-1, min(1, self.alpha * self.heuristic_score(state)))
+
+        return self.evaluate_for_player(state)
     
     def backpropagate(self, node, reward):
         cur = node
         while cur is not None:
             cur.visits += 1
-            cur.value_sum += reward
+            if cur.player_index == self.root_player_index:
+                cur.value_sum += reward
+            else:
+                cur.value_sum -= reward
             cur = cur.parent
-            
+
     def get_action(self):
         self.root_node.untried = self.game_state.get_valid_actions(self.root_node.state)
         if not self.root_node.untried:
@@ -423,12 +466,8 @@ class OldMCTS:
         if not self.root_node.children:
             return "no children in root node"
         
-        best_child = self.root_node.children[0]
-        for child in self.root_node.children:
-            if child.visits > best_child.visits:
-                best_child = child
+        best_child = max(self.root_node.children, key=lambda c: c.visits)
                 
         best_action = best_child.action
         
         return best_action
-    
