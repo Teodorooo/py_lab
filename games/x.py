@@ -1,17 +1,5 @@
-d = {'players': {'france': {
-                                    'player_index': 1, 
-                                    'available_units': 2
-                                    }, 
-                 'germany': {
-                                    'player_index': 2, 
-                                    'available_units': 3
-                                                } }}
+s2=[(3971.507, 720.635), (3971.507, 732.619), (3971.507, 768.572)] 
+s1=[(3971.507, 708.651), (3971.507, 720.635), (3971.507, 732.619), (3971.507, 744.603), (3971.507, 756.588), (3971.507, 768.572), (3971.507, 780.556), (3971.507, 792.54), (3971.507, 804.524), (3971.507, 816.509), (3971.507, 828.493), (3971.507, 840.477), (3971.507, 852.461), (3971.507, 864.445), (3971.507, 876.429)]
 
 
-for player_name in d['players']:
-    for index in d['players'][player_name].values():
-        print(index)
-        if index == 2:
-            player = player_name
-            
-print(player_name)
+print(set(s2).difference(set(s1)))
