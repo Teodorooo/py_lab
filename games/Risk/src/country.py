@@ -29,11 +29,13 @@ class Country:
     def check_hovered(self, mouse_pos: pg.Vector2, mouse_offset: pg.Vector2, mouse_clicked: bool, screen: object, font_path: str) -> None:
         self.selected = self.hovered and mouse_clicked
         is_hovering = self.polygon.contains_point(mouse_pos.x + mouse_offset.x, mouse_pos.y + mouse_offset.y)
-        if is_hovering:
-            self.show_country_info(screen, font_path)
+
         if is_hovering != self.hovered:
             self.hovered = is_hovering
             self.change_color_when_hovered()
+            
+        if is_hovering:
+            self.show_country_info(screen, font_path)
 
     def show_country_info(self, screen, font_path):
         font_size = (screen.size[0] + screen.size[1]) * 0.015 / 2

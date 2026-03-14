@@ -27,7 +27,7 @@ class Game:
         pg.time.set_timer(self.event_1, 500)
         self.is_timer_on = False
         
-        self.manage_cards = ManageCards(screen, self.ui_manager)
+        self.manage_cards = ManageCards(screen)
 
         self.mouse_clicked = False
 
