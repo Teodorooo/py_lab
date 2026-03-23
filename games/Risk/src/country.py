@@ -175,7 +175,7 @@ class MakeCountries:
             num += len(all_starting_countries) / len(self.players)
 
     def read_geo_data(self) -> None:
-        with open("Risk/data/country_coords.json", "r") as f:
+        with open("data/country_coords.json", "r") as f:
             self.geo_data = json.load(f)
 
     def get_country_neighbours(self, country: Country) -> dict:

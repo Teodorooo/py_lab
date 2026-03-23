@@ -1,5 +1,5 @@
 import pygame as pg
-import pygame_gui
+import asyncio
 from src.draw import Draw
 from src.country import MakeCountries, Country
 from src.gui import ManageCards
@@ -13,7 +13,7 @@ class Game:
         self.bot_versions = bot_versions
         
         self.screen = screen
-        self.font_path = "Risk/font/EraserRegular.ttf"
+        self.font_path = "font/EraserRegular.ttf"
         
         self.width = screen.size[0]
         self.height = screen.size[1]
@@ -21,11 +21,9 @@ class Game:
         self.playing = True
         self.scroll = 0
         self.settings_selected = False
-        self.ui_manager = pygame_gui.UIManager((self.width, self.height))
         
-        self.event_1 = pg.USEREVENT + 100
-        pg.time.set_timer(self.event_1, 500)
         self.is_timer_on = False
+        self.timer_last_toggle = pg.time.get_ticks()
         
         self.manage_cards = ManageCards(screen)
 
@@ -37,15 +35,19 @@ class Game:
         self.manage_players = PlayerManager(self.screen, players, self.countries, self.bot_versions, self.font_path)
         self.draw = Draw(self.screen, self.countries, self.font_path) 
         
-    def run(self) -> None:
+    async def run(self) -> None:
         while self.playing:
             self.screen.fill((60, 60, 60))
             self.events()
             mouse_pos = pg.Vector2(pg.mouse.get_pos())
+            now = pg.time.get_ticks()
             
+            if now - self.timer_last_toggle >= 500:
+                self.is_timer_on = not self.is_timer_on
+                self.timer_last_toggle = now
+                
             if not self.manage_cards.settings_selected:
                 self.manage_cards.draw_cards(self.screen, self.width, self.height, self.mouse_clicked, self.is_timer_on, self.font_path)
-                self.ui_manager.draw_ui(self.screen)
                 if self.manage_cards.settings_selected:
                     self.init_game()
             else:
@@ -59,6 +61,8 @@ class Game:
 
             self.scroll = 0
             self.mouse_clicked = False
+            
+            await asyncio.sleep(0)
             pg.display.update()
             
     def win_screen(self, winning_player):
@@ -68,13 +72,11 @@ class Game:
                   (0, 0, 0), self.width / 2, self.height / 2, center=True)
     
     def events(self) -> None:
-        time_delta = self.clock.tick(60) / 1000.0
+        self.clock.tick(60)
         for event in pg.event.get():
             if event.type == pg.VIDEORESIZE:
                 self.width, self.height = event.size
                 self.screen = pg.display.set_mode((self.width, self.height), pg.RESIZABLE)
-                self.ui_manager.set_window_resolution((self.width, self.height))
-                self.ui_manager.clear_and_reset()
                 self.manage_cards.card_size_updated = True
 
             if event.type == pg.QUIT:
@@ -84,28 +86,6 @@ class Game:
 
             if event.type == pg.MOUSEWHEEL:
                 self.scroll = event.dict['y']
-                
-            if event.type == self.event_1:
-                self.is_timer_on = not self.is_timer_on
 
             if event.type == pg.KEYDOWN:
                 self.manage_cards.change_player_name(pg.key.name(event.key))
-                
-            if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                self.manage_cards.ui_event = event
-                
-            if event.type == pygame_gui.UI_COLOUR_PICKER_COLOUR_PICKED:
-                self.manage_cards.colour_picked(event.colour)
-                
-            if event.type == pygame_gui.UI_WINDOW_CLOSE:
-                self.manage_cards.close_ui()
-                
-            self.ui_manager.process_events(event)
-
-        self.ui_manager.update(time_delta)
-
-        
-
-            
-
-
