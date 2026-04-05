@@ -1,7 +1,33 @@
+import json
+import random
+from pathlib import Path
+
 import pygame as pg
 from src.utils import Utils
 
 draw_text = Utils().draw_text
+NAMES_PATH = Path(__file__).resolve().parent.parent / "data" / "name_lists.json"
+
+
+def _load_name_lists():
+    fallback = {
+        "adjectives": [],
+        "animals": []
+    }
+
+    try:
+        with open(NAMES_PATH, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return fallback
+
+    adjectives = [name for name in loaded.get("adjectives", []) if isinstance(name, str) and name]
+    animals = [name for name in loaded.get("animals", []) if isinstance(name, str) and name]
+
+    return {
+        "adjectives": adjectives,
+        "animals": animals
+    }
 
 
 def _point_in_polygon(px, py, coords):
@@ -46,7 +72,9 @@ class ManageCards:
         self.x_divisions = 3
         self.y_divisions = 2
         self.player_count = 2
-        self.player_cards = [PlayerCard(screen, self.x_divisions, self.y_divisions, n) for n in range(self.player_count)]
+        self.name_lists = _load_name_lists()
+        self.used_names = set()
+        self.player_cards = [PlayerCard(screen, self.x_divisions, self.y_divisions, n, name=self.generate_default_name()) for n in range(self.player_count)]
         self.player_count -= 1
         self.screen = screen
         self.changed_card_name = None
@@ -67,8 +95,39 @@ class ManageCards:
             if getattr(card, "name_selected_this_frame", False):
                 self.changed_card_name = card
 
+            if getattr(card, "delete_selected_this_frame", False):
+                self.delete_player(card)
+                break
+
         self.add_button(screen, width, height, mouse_clicked, font_path, "Add Player", self.player_count + 1, self.add_player)
         self.add_button(screen, width, height, mouse_clicked, font_path, "Start", self.y_divisions * self.x_divisions - 1, self.start_game)
+
+    def generate_default_name(self):
+        adjectives = self.name_lists["adjectives"]
+        animals = self.name_lists["animals"]
+
+        if adjectives and animals:
+            possible_names = [f"{adj} {animal}" for adj in adjectives for animal in animals]
+            unused_names = [name for name in possible_names if name.lower() not in self.used_names]
+
+            if unused_names:
+                chosen_name = random.choice(unused_names)
+            else:
+                chosen_name = random.choice(possible_names)
+                suffix = 2
+                while f"{chosen_name} {suffix}".lower() in self.used_names:
+                    suffix += 1
+                chosen_name = f"{chosen_name} {suffix}"
+        else:
+            base_name = "Player"
+            suffix = 1
+            chosen_name = f"{base_name} {suffix}"
+            while chosen_name.lower() in self.used_names:
+                suffix += 1
+                chosen_name = f"{base_name} {suffix}"
+
+        self.used_names.add(chosen_name.lower())
+        return chosen_name
 
     def start_game(self, _):
         self.settings_selected = True
@@ -121,8 +180,30 @@ class ManageCards:
                     self.x_divisions += 1
                 self.card_size_updated = True
 
-        new_player = PlayerCard(screen, self.x_divisions, self.y_divisions, self.player_count)
+        new_player = PlayerCard(screen, self.x_divisions, self.y_divisions, self.player_count, name=self.generate_default_name())
         self.player_cards.append(new_player)
+
+    def delete_player(self, card):
+        if len(self.player_cards) <= 2:
+            return
+
+        if card in self.player_cards:
+            self.player_cards.remove(card)
+            if not any(other.name.lower() == card.name.lower() for other in self.player_cards):
+                self.used_names.discard(card.name.lower())
+
+        self.changed_card_name = None
+        self.reindex_cards()
+
+    def reindex_cards(self):
+        self.player_count = len(self.player_cards) - 1
+
+        for idx, card in enumerate(self.player_cards):
+            card.num = idx
+            card.color = _generate_player_color(idx)
+            card.update_card_coords(self.screen.size[0], self.screen.size[1], self.x_divisions, self.y_divisions)
+
+        self.card_size_updated = False
 
     def change_player_name(self, key):
         if not self.changed_card_name:
@@ -180,6 +261,8 @@ class PlayerCard:
         player.name_info = None
         player.name_txt_rect = None
         player.name_selected_this_frame = False
+        player.delete_selected_this_frame = False
+        player.delete_coords = None
 
         player.update_card_coords(screen.size[0], screen.size[1], x_divisions, y_divisions)
         player.organise_player_info()
@@ -226,6 +309,8 @@ class PlayerCard:
 
     def draw_card_info_txt(player, screen, inverted_color, is_timer_on, mouse_clicked, font_path, mouse_pos):
         player.name_selected_this_frame = False
+        player.delete_selected_this_frame = False
+        player.draw_delete_button(screen, inverted_color, mouse_clicked, font_path, mouse_pos)
 
         for info in player.infos:
             info.hovered = _point_in_polygon(mouse_pos.x, mouse_pos.y, info.coords)
@@ -243,6 +328,37 @@ class PlayerCard:
 
             if info.is_text:
                 player.name_txt_rect = info.text_rect
+
+    def draw_delete_button(player, screen, inverted_color, mouse_clicked, font_path, mouse_pos):
+        delete_size = player.shrink_amount * 0.9
+        top = player.topleft.y + player.shrink_amount * 0.4
+        right = player.topright.x - player.shrink_amount * 0.4
+
+        player.delete_coords = (
+            (right - delete_size, top),
+            (right, top),
+            (right, top + delete_size),
+            (right - delete_size, top + delete_size)
+        )
+
+        hovered = _point_in_polygon(mouse_pos.x, mouse_pos.y, player.delete_coords)
+        fill_color = inverted_color if hovered else player.color
+        text_color = player.color if hovered else inverted_color
+
+        pg.draw.polygon(screen, fill_color, player.delete_coords)
+        pg.draw.polygon(screen, inverted_color, player.delete_coords, 2)
+        draw_text(
+            screen,
+            font_path,
+            delete_size * 0.7,
+            "X",
+            text_color,
+            right - delete_size * 0.72,
+            top + delete_size * 0.08
+        )
+
+        if hovered and mouse_clicked:
+            player.delete_selected_this_frame = True
 
     def organise_player_info(player):
         class PlayerInfo:
