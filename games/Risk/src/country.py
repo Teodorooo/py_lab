@@ -38,12 +38,13 @@ class Country:
             self.show_country_info(screen, font_path)
 
     def show_country_info(self, screen, font_path):
-        font_size = (screen.size[0] + screen.size[1]) * 0.015 / 2
-        surf = pg.surface.Surface((screen.size[0], screen.size[1]))
-        rect = surf.get_rect(topleft=(((screen.size[0] * 0.75, screen.size[1] * 0.75))))
+        screen_width, screen_height = screen.get_size()
+        font_size = (screen_width + screen_height) * 0.015 / 2
+        surf = pg.surface.Surface((screen_width, screen_height))
+        rect = surf.get_rect(topleft=((screen_width * 0.75, screen_height * 0.75)))
         surf.set_alpha(210)
         screen.blit(surf, rect)
-        draw_text(screen, font_path, font_size, f"Owner: {self.owner}", "white", screen.size[0] * 0.75, screen.size[1] * 0.75)
+        draw_text(screen, font_path, font_size, f"Owner: {self.owner}", "white", screen_width * 0.75, screen_height * 0.75)
 
     def get_center(self) -> pg.Vector2:
         """

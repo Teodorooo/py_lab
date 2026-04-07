@@ -78,8 +78,7 @@ class Player:
         self.font_path = font_path
         self.phase = 'place'
         
-        self.width = screen.size[0]
-        self.height = screen.size[1]
+        self.width, self.height = screen.get_size()
 
         for player, player_info in players.items():
             if player == self.player_name:
@@ -198,7 +197,7 @@ class HumanPlayer(Player):
             if self.deployed_units >= sending_cap:
                 self.deployed_units = sending_cap - 1
         
-        button_is_hovered = draw_text(self.screen, self.font_path, 20, f'{self.attacker.name if self.attacker else '(attacker)'} attacks {self.defender.name if self.defender else '(defender)'} with {self.deployed_units} units, click to confirm.', (200, 200, 255), 10, self.height - 50, rect_color = (0, 100, 0), get_hovered = True)    
+        button_is_hovered = draw_text(self.screen, self.font_path, 20, f"{self.attacker.name if self.attacker else '(attacker)'} attacks {self.defender.name if self.defender else '(defender)'} with {self.deployed_units} units, click to confirm.", (200, 200, 255), 10, self.height - 50, rect_color = (0, 100, 0), get_hovered = True)
 
         if self.mouse_clicked and self.attacker and self.defender and button_is_hovered:
             return True
@@ -266,7 +265,7 @@ class HumanPlayer(Player):
                     self.country_a = country if country.units > 1 else None
                     self.country_b = None
                     
-        button_is_hovered = draw_text(self.screen, self.font_path, 20, f'Move {self.deployed_units} units from {self.country_a.name if self.country_a else '(Country A)'} to {self.country_b.name if self.country_b else '(Country B)'}, click to confirm', (200, 200, 255), 10, self.height - 50, rect_color = (0, 100, 0), get_hovered = True)
+        button_is_hovered = draw_text(self.screen, self.font_path, 20, f"Move {self.deployed_units} units from {self.country_a.name if self.country_a else '(Country A)'} to {self.country_b.name if self.country_b else '(Country B)'}, click to confirm", (200, 200, 255), 10, self.height - 50, rect_color = (0, 100, 0), get_hovered = True)
         
         if self.country_a and self.country_b:
             if button_is_hovered and self.mouse_clicked:

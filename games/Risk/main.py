@@ -3,7 +3,6 @@ import pygame as pg
 import sys
 
 pg.init()
-pg.mixer.init()
 pg.font.init()
 
 WIDTH = 1280
@@ -16,6 +15,11 @@ pg.display.set_caption("Risk")
 
 async def main():
     try:
+        try:
+            pg.mixer.init()
+        except pg.error:
+            pass
+
         from src.game import Game
         from src.bot_versions.oldmcts import OldMCTS
         from src.bot_versions.newmcts import NewMCTS

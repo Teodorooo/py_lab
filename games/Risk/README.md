@@ -13,7 +13,7 @@ That means code changes will not appear in production until the web bundle is re
 The Docker image now regenerates the web build during `docker build` by running:
 
 ```bash
-python -m pygbag --build .
+python -m pygbag --build --html --cdn https://pygame-web.github.io/archives/0.9/ .
 ```
 
 This keeps Render deployments in sync with the latest source code and avoids shipping a stale `build/web` folder from your local machine.
@@ -24,5 +24,5 @@ If you want to generate the web version locally, install the build dependencies 
 
 ```bash
 pip install -r requirements-web.txt
-python -m pygbag --build .
+python -m pygbag --build --html --cdn https://pygame-web.github.io/archives/0.9/ .
 ```

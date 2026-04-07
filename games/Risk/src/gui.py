@@ -78,7 +78,7 @@ class ManageCards:
         self.player_count -= 1
         self.screen = screen
         self.changed_card_name = None
-        self.card_size_updated = False
+        self.card_size_updated = True
         self.settings_selected = False
 
     def draw_cards(self, screen, width, height, mouse_clicked, is_timer_on, font_path):
@@ -201,7 +201,8 @@ class ManageCards:
         for idx, card in enumerate(self.player_cards):
             card.num = idx
             card.color = _generate_player_color(idx)
-            card.update_card_coords(self.screen.size[0], self.screen.size[1], self.x_divisions, self.y_divisions)
+            width, height = self.screen.get_size()
+            card.update_card_coords(width, height, self.x_divisions, self.y_divisions)
 
         self.card_size_updated = False
 
@@ -264,7 +265,8 @@ class PlayerCard:
         player.delete_selected_this_frame = False
         player.delete_coords = None
 
-        player.update_card_coords(screen.size[0], screen.size[1], x_divisions, y_divisions)
+        width, height = screen.get_size()
+        player.update_card_coords(width, height, x_divisions, y_divisions)
         player.organise_player_info()
 
     def update_card_coords(player, width, height, xd, yd):

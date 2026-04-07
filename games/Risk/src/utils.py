@@ -19,9 +19,10 @@ class Utils:
         return defender_units, attacker_units
 
     def _font(self, font_path: str, size: int) -> pg.font.Font:
-        key = (font_path, size)
+        safe_size = max(1, int(size))
+        key = (font_path, safe_size)
         if key not in self._fonts:
-            self._fonts[key] = pg.font.Font(font_path, int(size))
+            self._fonts[key] = pg.font.Font(font_path, safe_size)
         return self._fonts[key]
 
     def draw_text(

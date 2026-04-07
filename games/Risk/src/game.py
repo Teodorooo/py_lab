@@ -15,8 +15,7 @@ class Game:
         self.screen = screen
         self.font_path = "font/EraserRegular.ttf"
         
-        self.width = screen.size[0]
-        self.height = screen.size[1]
+        self.width, self.height = screen.get_size()
         
         self.playing = True
         self.scroll = 0
@@ -37,6 +36,11 @@ class Game:
         
     async def run(self) -> None:
         while self.playing:
+            current_width, current_height = self.screen.get_size()
+            if (current_width, current_height) != (self.width, self.height):
+                self.width, self.height = current_width, current_height
+                self.manage_cards.card_size_updated = True
+
             self.screen.fill((60, 60, 60))
             self.events()
             mouse_pos = pg.Vector2(pg.mouse.get_pos())
