@@ -1,9 +1,20 @@
-from copy import deepcopy
 from random import choice, sample
 from math import sqrt, log
 from src.utils import Utils
 
-attack_calculation = Utils().attack_calculation 
+attack_calculation = Utils().attack_calculation
+
+def _shallow_copy_state(state):
+    """Efficient shallow copy that only copies mutable dicts, not nested structures"""
+    return {
+        'players': {name: dict(info) for name, info in state['players'].items()},
+        'countries': {name: dict(info) for name, info in state['countries'].items()},
+        'current_player_index': state['current_player_index'],
+        'phase': state['phase'],
+        'starting_phase': state['starting_phase'],
+        'fortified': state['fortified'],
+        'conquered_country': state['conquered_country'].copy() if state['conquered_country'] else None
+    } 
 
 class GameState:
     def __init__(self, players, current_player_index, countries, starting_phase, phase, fortified, conquered_country):
@@ -133,7 +144,7 @@ class GameState:
         return list(connected)
 
     def apply_action(self, state, action) -> dict:
-        new_state = deepcopy(state)
+        new_state = _shallow_copy_state(state)
         
         player = self.get_active_player_name(state)
         

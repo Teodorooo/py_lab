@@ -1,6 +1,5 @@
 import geopandas as gpd
-from shapely.geometry import mapping
-import numpy as np
+import json
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -95,20 +94,26 @@ remove_list = [
     'Somaliland',
 ]
 
-country_coords = {}
-for idx, row in geo_data[~geo_data.ADMIN.isin(remove_list)].iterrows():
-    geojson_obj = mapping(row["geometry"])
-    geo_coords = geojson_obj["coordinates"]
-    idx = np.argmax([len(coords[0]) for coords in geo_coords])
-    country_coords[row["ADMIN"]] = geo_coords[idx]
-
 countries = {}
-for country_name, country_coord in country_coords.items():
-    while len(country_coord) < 5:
-        country_coord = country_coord[0]
-    countries[country_name] = country_coord
-
-import json
+for idx, row in geo_data[~geo_data.ADMIN.isin(remove_list)].iterrows():
+    geom = row["geometry"]
+    
+    # Extract exterior coordinates directly from the largest polygon
+    if geom.geom_type == 'Polygon':
+        poly = geom
+    elif geom.geom_type == 'MultiPolygon':
+        # Get the largest polygon by area
+        poly = max(geom.geoms, key=lambda p: p.area)
+    else:
+        continue
+    
+    # Simplify geometry with balanced tolerance (0.3 degrees)
+    # Good balance between detail and performance for pole of inaccessibility
+    simplified = poly.simplify(0.2, preserve_topology=True)
+    coords = list(simplified.exterior.coords)
+    
+    # Convert coords to [lon, lat] format
+    countries[row["ADMIN"]] = [[lon, lat] for lon, lat in coords]
 
 with open(os.path.join(BASE_DIR, 'data/country_coords.json'), 'w') as f:
     json.dump(countries, f)

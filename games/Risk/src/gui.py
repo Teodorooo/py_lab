@@ -18,7 +18,8 @@ def _load_name_lists():
     try:
         with open(NAMES_PATH, "r", encoding="utf-8") as f:
             loaded = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except Exception as e:
+        print(f"[name_lists] Failed to load {NAMES_PATH}: {type(e).__name__}: {e}")
         return fallback
 
     adjectives = [name for name in loaded.get("adjectives", []) if isinstance(name, str) and name]

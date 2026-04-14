@@ -1,9 +1,13 @@
 import pygame as pg
 import json
 import random
+from heapq import heapify, heappop, heappush
 from math import sqrt
 from src.utils import Utils
 draw_text = Utils().draw_text
+
+
+_CELL_RADIUS_FACTOR = sqrt(2) / 2
 
 
 class Country:
@@ -80,7 +84,7 @@ class Country:
             self.center = pg.Vector2(avg_x, avg_y)
             return self.center
 
-        # Build initial grid of candidate cells
+        # Build initial grid of candidate cells, ordered by most promising first.
         cells = []
         x = min_x
         while x < max_x:
@@ -89,6 +93,7 @@ class Country:
                 cells.append(_Cell(x + cell_size / 2, y + cell_size / 2, cell_size, polygon))
                 y += cell_size
             x += cell_size
+        heapify(cells)
 
         # Test the centroid as a starting candidate
         centroid_x = sum(x for x, y in coords) / len(coords)
@@ -103,21 +108,19 @@ class Country:
         precision = cell_size * 0.01
 
         while cells:
-            next_cells = []
-            for cell in cells:
-                if cell.max_dist <= best.dist + precision:
-                    continue
+            cell = heappop(cells)
+            if cell.max_dist <= best.dist + precision:
+                break
 
-                half = cell.size / 4
-                cx, cy = cell.x, cell.y
-                for dx, dy in [(-half, -half), (half, -half), (-half, half), (half, half)]:
-                    new_cell = _Cell(cx + dx, cy + dy, cell.size / 2, polygon)
-                    if new_cell.dist > best.dist:
-                        best = new_cell
-                    if new_cell.max_dist > best.dist + precision:
-                        next_cells.append(new_cell)
-
-            cells = next_cells
+            half = cell.size / 4
+            new_size = cell.size / 2
+            cx, cy = cell.x, cell.y
+            for dx, dy in ((-half, -half), (half, -half), (-half, half), (half, half)):
+                new_cell = _Cell(cx + dx, cy + dy, new_size, polygon)
+                if new_cell.dist > best.dist:
+                    best = new_cell
+                if new_cell.max_dist > best.dist + precision:
+                    heappush(cells, new_cell)
 
         self.center = pg.Vector2(best.x, best.y)
         return self.center
@@ -133,12 +136,17 @@ class _Cell:
         (positive = inside, negative = outside)
       - the maximum possible distance any point in this cell could have
     """
+    __slots__ = ("x", "y", "size", "dist", "max_dist")
+
     def __init__(self, x, y, size, polygon):
         self.x = x
         self.y = y
         self.size = size
         self.dist = polygon.signed_distance(x, y)
-        self.max_dist = self.dist + size * sqrt(2) / 2
+        self.max_dist = self.dist + size * _CELL_RADIUS_FACTOR
+
+    def __lt__(self, other):
+        return self.max_dist > other.max_dist
 
 
 class MakeCountries:
@@ -150,8 +158,68 @@ class MakeCountries:
         self.read_geo_data()
         self.assign_countries_to_player()
         self.create_countries()
+        self.build_neighbor_spatial_index()
+        self.assign_neighbors_using_spatial_index()
+
+    def build_neighbor_spatial_index(self) -> None:
+        """Partition countries into a spatial grid for faster neighbor queries"""
+        grid_size = max(self.MAP_WIDTH, self.MAP_HEIGHT) / 4  # 4x4 grid
+        self.grid = {}
+        
         for country in self.countries:
-            self.get_country_neighbours(country)
+            # Get grid cell for country center
+            grid_x = int(country.center.x // grid_size)
+            grid_y = int(country.center.y // grid_size)
+            
+            for dx in range(-1, 2):  # Check 3x3 grid cells
+                for dy in range(-1, 2):
+                    cell_key = (grid_x + dx, grid_y + dy)
+                    if cell_key not in self.grid:
+                        self.grid[cell_key] = []
+                    self.grid[cell_key].append(country)
+    
+    def assign_neighbors_using_spatial_index(self) -> None:
+        """Find neighbors using spatial grid to avoid O(n²) checks"""
+        grid_size = max(self.MAP_WIDTH, self.MAP_HEIGHT) / 4
+        name_to_country = {c.name: c for c in self.countries}
+        
+        overrides = {
+            "United Kingdom": ["Ireland", "France", "Iceland"],
+            "France": ["United Kingdom"],
+            "Ireland": ["United Kingdom", "Iceland"],
+            "Iceland": ["United Kingdom", "Ireland"],
+            "Denmark": ["Norway", "Sweden"],
+            "Norway": ["Denmark"],
+            "Sweden": ["Denmark"],
+            "Finland": ["Estonia"],
+            "Estonia": ["Finland"],
+        }
+        
+        for country in self.countries:
+            grid_x = int(country.center.x // grid_size)
+            grid_y = int(country.center.y // grid_size)
+            
+            # Get candidates from neighboring grid cells
+            candidates = set()
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    cell_key = (grid_x + dx, grid_y + dy)
+                    if cell_key in self.grid:
+                        candidates.update(self.grid[cell_key])
+            
+            # Check intersections only with candidates
+            for other_country in candidates:
+                if country.name != other_country.name:
+                    if country.polygon.intersects(other_country.polygon):
+                        country.neighbours.append(other_country)
+            
+            # Apply overrides
+            if country.name in overrides:
+                for neighbor_name in overrides[country.name]:
+                    if neighbor_name in name_to_country:
+                        neighbor = name_to_country[neighbor_name]
+                        if neighbor not in country.neighbours:
+                            country.neighbours.append(neighbor)
 
     def create_countries(self) -> None:
         for name, coords in self.geo_data.items():
@@ -179,30 +247,6 @@ class MakeCountries:
         with open("data/country_coords.json", "r") as f:
             self.geo_data = json.load(f)
 
-    def get_country_neighbours(self, country: Country) -> dict:
-        for other_country in self.countries:
-            if country.name != other_country.name:
-                if country.polygon.intersects(other_country.polygon):
-                    country.neighbours.append(other_country)
-
-        overrides = {
-            "United Kingdom": ["Ireland", "France", "Iceland"],
-            "France": ["United Kingdom"],
-            "Ireland": ["United Kingdom", "Iceland"],
-            "Iceland": ["United Kingdom", "Ireland"],
-            "Denmark": ["Norway", "Sweden"],
-            "Norway": ["Denmark"],
-            "Sweden": ["Denmark"],
-            "Finland": ["Estonia"],
-            "Estonia": ["Finland"],
-        }
-        name_to_country = {c.name: c for c in self.countries}
-
-        if country.name in overrides:
-            for neighbor_name in overrides[country.name]:
-                if neighbor_name in name_to_country:
-                    country.neighbours.append(name_to_country[neighbor_name])
-
 
 class XPolygon:
     def __init__(self, points):
@@ -220,6 +264,7 @@ class XPolygon:
 
         # Precompute edges: (x1, y1, x2, y2, ymin, ymax)
         self.edges = []
+        self._signed_distance_edges = []
         n = len(points)
         for i in range(n):
             x1, y1 = points[i]
@@ -227,6 +272,18 @@ class XPolygon:
             ymin = y1 if y1 < y2 else y2
             ymax = y2 if y1 < y2 else y1
             self.edges.append((x1, y1, x2, y2, ymin, ymax))
+
+            dx = x2 - x1
+            dy = y2 - y1
+            len_sq = dx * dx + dy * dy
+            inv_len_sq = 1 / len_sq if len_sq else 0
+            inv_dy = 1 / dy if dy else 0
+            edge_min_x = x1 if x1 < x2 else x2
+            edge_max_x = x2 if x1 < x2 else x1
+            self._signed_distance_edges.append((
+                x1, y1, ymin, ymax, edge_min_x, edge_max_x,
+                dx, dy, len_sq, inv_len_sq, inv_dy
+            ))
 
     def contains_point(self, px, py, include_boundary=True):
         """Check if a point is inside this polygon."""
@@ -256,18 +313,59 @@ class XPolygon:
         Used by the pole of inaccessibility algorithm.
         """
         min_dist_sq = float('inf')
+        inside = False
+        check_inside = self.min_x <= px <= self.max_x and self.min_y <= py <= self.max_y
 
-        for x1, y1, x2, y2, _, _ in self.edges:
-            dist_sq = _point_to_segment_dist_sq(px, py, x1, y1, x2, y2)
+        for (
+            x1, y1, ymin, ymax, edge_min_x, edge_max_x,
+            dx, dy, len_sq, inv_len_sq, inv_dy
+        ) in self._signed_distance_edges:
+            if check_inside and ymin <= py < ymax and x1 + (py - y1) * dx * inv_dy > px:
+                inside = not inside
+
+            if px < edge_min_x:
+                dist_x = edge_min_x - px
+            elif px > edge_max_x:
+                dist_x = px - edge_max_x
+            else:
+                dist_x = 0
+
+            if py < ymin:
+                dist_y = ymin - py
+            elif py > ymax:
+                dist_y = py - ymax
+            else:
+                dist_y = 0
+
+            if dist_x * dist_x + dist_y * dist_y >= min_dist_sq:
+                continue
+
+            if len_sq:
+                t = ((px - x1) * dx + (py - y1) * dy) * inv_len_sq
+
+                if t < 0:
+                    closest_x = x1
+                    closest_y = y1
+                elif t > 1:
+                    closest_x = x1 + dx
+                    closest_y = y1 + dy
+                else:
+                    closest_x = x1 + t * dx
+                    closest_y = y1 + t * dy
+
+                dist_x = px - closest_x
+                dist_y = py - closest_y
+                dist_sq = dist_x * dist_x + dist_y * dist_y
+            else:
+                dist_x = px - x1
+                dist_y = py - y1
+                dist_sq = dist_x * dist_x + dist_y * dist_y
+
             if dist_sq < min_dist_sq:
                 min_dist_sq = dist_sq
 
         dist = sqrt(min_dist_sq)
-
-        if self.contains_point(px, py, False):
-            return dist
-        else:
-            return -dist
+        return dist if inside else -dist
 
     def intersects(self, other):
         """
