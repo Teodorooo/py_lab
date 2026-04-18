@@ -107,7 +107,7 @@ class GameState:
                                     dst,
                                     u,
                                 ))
-            actions.add(("end_turn"),)
+            actions.add(("end_turn",))
             
         return actions
     

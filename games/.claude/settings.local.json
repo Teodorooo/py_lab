@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(python \"/c/Users/adrie/Desktop/Proyectos Teodoro/py_lab/games/Risk/data/country_coords.json\")"
+    ]
+  }
+}

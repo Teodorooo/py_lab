@@ -6,6 +6,99 @@ from math import sqrt
 from src.utils import Utils
 draw_text = Utils().draw_text
 
+CONTINENT_COUNTRIES = {
+    "World": None,  # None means all countries
+    "Africa": [
+        "Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi",
+        "Cabo Verde", "Cameroon", "Central African Republic", "Chad", "Democratic Republic of the Congo",
+        "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", "Gambia",
+        "Ghana", "Guinea", "Ivory Coast", "Kenya", "Lesotho", "Liberia", "Libya",
+        "Madagascar", "Malawi", "Mali", "Mauritania", "Morocco", "Mozambique", "Namibia",
+        "Niger", "Nigeria", "Republic of the Congo", "Rwanda", "Saint Helena", "Senegal",
+        "Sierra Leone", "Somalia", "South Africa", "South Sudan", "Sudan", "eSwatini",
+        "Togo", "Tunisia", "Uganda", "United Republic of Tanzania", "Zambia", "Zimbabwe",
+    ],
+    "Asia": [
+        "Afghanistan", "Armenia", "Azerbaijan", "Bahrain", "Bangladesh", "Bhutan", "Brunei",
+        "Cambodia", "China", "Cyprus", "East Timor", "Georgia", "India", "Indonesia",
+        "Iran", "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan", "Kuwait", "Kyrgyzstan",
+        "Laos", "Lebanon", "Malaysia", "Mongolia", "Myanmar", "Nepal", "North Korea",
+        "Northern Cyprus", "Oman", "Pakistan", "Palestine", "Philippines", "Qatar",
+        "Russia", "Saudi Arabia", "Singapore", "South Korea", "Sri Lanka", "Syria",
+        "Taiwan", "Tajikistan", "Thailand", "Turkey", "Turkmenistan", "United Arab Emirates",
+        "Uzbekistan", "Vietnam", "Yemen",
+    ],
+    "Europe": [
+        "Albania", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria",
+        "Croatia", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany",
+        "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Kosovo", "Latvia",
+        "Lithuania", "Luxembourg", "Moldova", "Montenegro", "Netherlands", "North Macedonia",
+        "Norway", "Poland", "Portugal", "Romania", "Republic of Serbia", "Slovakia",
+        "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
+    ],
+    "North America": [
+        "Belize", "Bermuda", "Canada", "Costa Rica", "Cuba", "Dominican Republic",
+        "El Salvador", "Greenland", "Guatemala", "Guam", "Haiti", "Honduras",
+        "Jamaica", "Mexico", "Nicaragua", "Northern Mariana Islands", "Panama",
+        "The Bahamas", "Trinidad and Tobago", "United States of America",
+    ],
+    "South America": [
+        "Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Guyana",
+        "Paraguay", "Peru", "South Georgia and the Islands", "Suriname", "Uruguay", "Venezuela",
+    ],
+    "Oceania": [
+        "Australia", "Fiji", "Indian Ocean Territories", "New Zealand",
+        "Papua New Guinea", "Solomon Islands", "Vanuatu",
+    ],
+}
+
+CONTINENT_BONUSES = {
+    "Africa": 3,
+    "Asia": 7,
+    "Europe": 5,
+    "North America": 5,
+    "South America": 2,
+    "Oceania": 2,
+}
+
+# Reverse lookup: country_name -> continent
+_COUNTRY_TO_CONTINENT = {}
+for _cont, _members in CONTINENT_COUNTRIES.items():
+    if _members is not None:
+        for _c in _members:
+            _COUNTRY_TO_CONTINENT[_c] = _cont
+
+
+def get_continent_bonuses(countries, player_name):
+    """Return total continent bonus armies for a player.
+    `countries` can be a list of Country objects or a dict {name: {owner, ...}}."""
+    owned = set()
+    if isinstance(countries, dict):
+        for name, info in countries.items():
+            if info.get('owner') == player_name:
+                owned.add(name)
+    else:
+        for c in countries:
+            if c.owner == player_name:
+                owned.add(c.name)
+
+    bonus = 0
+    for continent, members in CONTINENT_COUNTRIES.items():
+        if members is None:
+            continue
+        present = [m for m in members if m in (owned | _all_country_names(countries))]
+        if not present:
+            continue
+        if all(m in owned for m in present):
+            bonus += CONTINENT_BONUSES.get(continent, 0)
+    return bonus
+
+
+def _all_country_names(countries):
+    if isinstance(countries, dict):
+        return set(countries.keys())
+    return {c.name for c in countries}
+
 
 _CELL_RADIUS_FACTOR = sqrt(2) / 2
 
@@ -24,31 +117,9 @@ class Country:
         self.neighbours = []
         self.center = self.get_center()
 
-    def change_color_when_hovered(self):
-        if self.hovered:
-            self.color = [min(c + 50, 255) for c in self.original_color]
-        else:
-            self.color = self.original_color
-
-    def check_hovered(self, mouse_pos: pg.Vector2, mouse_offset: pg.Vector2, mouse_clicked: bool, screen: object, font_path: str) -> None:
+    def check_hovered(self, world_pos: pg.Vector2, mouse_clicked: bool) -> None:
         self.selected = self.hovered and mouse_clicked
-        is_hovering = self.polygon.contains_point(mouse_pos.x + mouse_offset.x, mouse_pos.y + mouse_offset.y)
-
-        if is_hovering != self.hovered:
-            self.hovered = is_hovering
-            self.change_color_when_hovered()
-            
-        if is_hovering:
-            self.show_country_info(screen, font_path)
-
-    def show_country_info(self, screen, font_path):
-        screen_width, screen_height = screen.get_size()
-        font_size = (screen_width + screen_height) * 0.015 / 2
-        surf = pg.surface.Surface((screen_width, screen_height))
-        rect = surf.get_rect(topleft=((screen_width * 0.75, screen_height * 0.75)))
-        surf.set_alpha(210)
-        screen.blit(surf, rect)
-        draw_text(screen, font_path, font_size, f"Owner: {self.owner}", "white", screen_width * 0.75, screen_height * 0.75)
+        self.hovered = self.polygon.contains_point(world_pos.x, world_pos.y)
 
     def get_center(self) -> pg.Vector2:
         """
@@ -150,12 +221,14 @@ class _Cell:
 
 
 class MakeCountries:
-    def __init__(self, players):
+    def __init__(self, players, map_name="World"):
         self.MAP_WIDTH = 2.05 * 4000
         self.MAP_HEIGHT = 1.0 * 4000
         self.players = players
+        self.map_name = map_name
         self.countries = []
         self.read_geo_data()
+        self.filter_geo_data()
         self.assign_countries_to_player()
         self.create_countries()
         self.build_neighbor_spatial_index()
@@ -246,6 +319,11 @@ class MakeCountries:
     def read_geo_data(self) -> None:
         with open("data/country_coords.json", "r") as f:
             self.geo_data = json.load(f)
+
+    def filter_geo_data(self) -> None:
+        allowed = CONTINENT_COUNTRIES.get(self.map_name)
+        if allowed is not None:
+            self.geo_data = {k: v for k, v in self.geo_data.items() if k in allowed}
 
 
 class XPolygon:
